@@ -12,7 +12,7 @@ app.config['SECURITY_REGISTERABLE'] = True
 app.debug = True
 db = SQLAlchemy(app)
 
-# Define modles
+# Define models
 roles_users = db.Table('roles_users',
   db.Column('user_id', db.Integer(), db.ForeignKey('user.id')),
   db.Column('role_id', db.Integer(), db.ForeignKey('role.id'))
@@ -26,27 +26,37 @@ class Role(db.Model, RoleMixin):
 
 
 class User(db.Model, UserMixin):
-  id = db.Column(db.Integer, primary_key=True)
-  email = db.Column(db.String(255), unique=True)
-  password = db.Column(db.String(255))
-  active = db.Column(db.String(255))
-  confirmed_at = db.Column(db.DateTime())
-  roles = db.relationship('Role', secondary=roles_users, backref=db.backref('users', lazy='dynamic'))
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True)
+    password = db.Column(db.String(255))
+    active = db.Column(db.Boolean())
+    confirmed_at = db.Column(db.DateTime())
+    roles = db.relationship('Role', secondary=roles_users,
+                            backref=db.backref('users', lazy='dynamic'))
 
 
 # Setup Flask-Security
 user_datastore = SQLAlchemyUserDatastore(db, User, Role)
 security = Security(app, user_datastore)
 
+
+# Create a user to test with
+@app.before_first_request
+def create_user():
+    db.create_all()
+    user_datastore.create_user(email='matt@nobien.net', password='password')
+    db.session.commit()
+
+
 @app.route('/')
 def index():
   # myUser = User.query.all()
   # oneItem = User.query.filter_by(username="arst").first()
-  return render_template('add_user.html')
+  return render_template('index.html')
 
-@app.route('/profile/<username>')
-def profile(username):
-  user = User.query.filter_by(username=username).first()
+@app.route('/profile/<email>')
+def profile(email):
+  user = User.query.filter_by(email=email).first()
   return render_template('profile.html', user=user)
 
 @app.route('/post_user', methods=['POST'])
